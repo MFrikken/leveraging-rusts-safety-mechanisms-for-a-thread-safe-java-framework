@@ -5,7 +5,7 @@ import org.demo.banking.core.BankAccount;
 import org.demo.banking.ownershipandborrowing.BorrowGuard;
 import org.demo.banking.ownershipandborrowing.BorrowUtils;
 import org.demo.banking.ownershipandborrowing.Exclusive;
-import org.demo.banking.ownershipandborrowing.Pair;
+import org.demo.banking.ownershipandborrowing.GuardGroup;
 
 public class Main {
     public static void main(String[] args) throws InterruptedException {
@@ -15,14 +15,11 @@ public class Main {
         Bank bank = new Bank();
 
         Runnable transferTask = () -> {
-            try {
-                // aquire both ownerships at once to prevent deadlocks
-                Pair<BorrowGuard<BankAccount>, BorrowGuard<BankAccount>> pair =
-                        BorrowUtils.borrowMutPair(accA, accB);
-                try (BorrowGuard<BankAccount> from = pair.getFirst();
-                     BorrowGuard<BankAccount> to = pair.getSecond()) {
-                    bank.transfer(from.get(), to.get(), 600);
-                }
+            // aquire both ownerships at once to prevent deadlocks
+            try (GuardGroup multipleGuards = BorrowUtils.borrowMutAll(accA, accB)) {
+                BankAccount from = (BankAccount) multipleGuards.get(0).get();
+                BankAccount to = (BankAccount) multipleGuards.get(1).get();
+                bank.transfer(from, to, 600);
             } catch (Exception e) {
                 System.err.println("Transfer: " + e.getMessage());
             }
